@@ -14,7 +14,6 @@ describe("IPRegistry", function () {
     const tx = await ipRegistry.registerAsset("QmFakeHash", "image");
     const receipt = await tx.wait();
 
-    // Ethers v6 way to get events
     const event = receipt.logs.find((log: any) => {
       try {
         const parsed = ipRegistry.interface.parseLog(log);
@@ -43,20 +42,20 @@ describe("IPRegistry", function () {
     expect(assetIds.map((id: bigint) => Number(id))).to.deep.equal([1, 2]);
   });
 
-  it("should allow registering a document", async function () {
-    const tx = await ipRegistry.registerAsset("QmDocHash", "document");
-    const receipt = await tx.wait();
 
-    const event = receipt.logs.find((log: any) => {
-      try {
-        const parsed = ipRegistry.interface.parseLog(log);
-        return parsed?.name === "AssetRegistered";
-      } catch {
-        return false;
-      }
-    });
+  it("should return a valid certificate for an asset", async function () {
+    const tx = await ipRegistry.registerAsset("QmCertHash", "document");
+    await tx.wait();
 
-    const parsedEvent = ipRegistry.interface.parseLog(event);
-    expect(parsedEvent.args.assetType).to.equal("document");
+    const cert = await ipRegistry.getCertificate(1);
+    
+    const [owner] = await hre.ethers.getSigners();
+
+    expect(cert.id).to.equal(1n);
+    expect(cert.owner).to.equal(owner.address);
+    expect(cert.ipfsHash).to.equal("QmCertHash");
+    expect(cert.assetType).to.equal("document");
+    expect(cert.timestamp).to.be.a("bigint");
+    expect(cert.onChainLink).to.include("https://etherscan.io/address/");
   });
 });

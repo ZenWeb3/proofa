@@ -52,6 +52,7 @@ export interface IPRegistryInterface extends Interface {
     nameOrSignature:
       | "getAsset"
       | "getAssetsByOwner"
+      | "getCertificate"
       | "owner"
       | "registerAsset"
       | "renounceOwnership"
@@ -70,6 +71,10 @@ export interface IPRegistryInterface extends Interface {
   encodeFunctionData(
     functionFragment: "getAssetsByOwner",
     values: [AddressLike]
+  ): string;
+  encodeFunctionData(
+    functionFragment: "getCertificate",
+    values: [BigNumberish]
   ): string;
   encodeFunctionData(functionFragment: "owner", values?: undefined): string;
   encodeFunctionData(
@@ -92,6 +97,10 @@ export interface IPRegistryInterface extends Interface {
   decodeFunctionResult(functionFragment: "getAsset", data: BytesLike): Result;
   decodeFunctionResult(
     functionFragment: "getAssetsByOwner",
+    data: BytesLike
+  ): Result;
+  decodeFunctionResult(
+    functionFragment: "getCertificate",
     data: BytesLike
   ): Result;
   decodeFunctionResult(functionFragment: "owner", data: BytesLike): Result;
@@ -209,6 +218,21 @@ export interface IPRegistry extends BaseContract {
     "view"
   >;
 
+  getCertificate: TypedContractMethod<
+    [_id: BigNumberish],
+    [
+      [bigint, string, string, string, bigint, string] & {
+        id: bigint;
+        owner: string;
+        ipfsHash: string;
+        assetType: string;
+        timestamp: bigint;
+        onChainLink: string;
+      }
+    ],
+    "view"
+  >;
+
   owner: TypedContractMethod<[], [string], "view">;
 
   registerAsset: TypedContractMethod<
@@ -241,6 +265,22 @@ export interface IPRegistry extends BaseContract {
   getFunction(
     nameOrSignature: "getAssetsByOwner"
   ): TypedContractMethod<[_owner: AddressLike], [bigint[]], "view">;
+  getFunction(
+    nameOrSignature: "getCertificate"
+  ): TypedContractMethod<
+    [_id: BigNumberish],
+    [
+      [bigint, string, string, string, bigint, string] & {
+        id: bigint;
+        owner: string;
+        ipfsHash: string;
+        assetType: string;
+        timestamp: bigint;
+        onChainLink: string;
+      }
+    ],
+    "view"
+  >;
   getFunction(
     nameOrSignature: "owner"
   ): TypedContractMethod<[], [string], "view">;
