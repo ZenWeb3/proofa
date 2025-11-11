@@ -50,20 +50,33 @@ export declare namespace IPRegistry {
 export interface IPRegistryInterface extends Interface {
   getFunction(
     nameOrSignature:
+      | "assetLicenses"
       | "getAsset"
       | "getAssetsByOwner"
       | "getCertificate"
+      | "getLicense"
       | "owner"
       | "registerAsset"
       | "renounceOwnership"
+      | "setLicense"
       | "totalAssets"
+      | "transferAsset"
       | "transferOwnership"
+      | "verifyAsset"
   ): FunctionFragment;
 
   getEvent(
-    nameOrSignatureOrTopic: "AssetRegistered" | "OwnershipTransferred"
+    nameOrSignatureOrTopic:
+      | "AssetRegistered"
+      | "AssetTransferred"
+      | "LicenseSet"
+      | "OwnershipTransferred"
   ): EventFragment;
 
+  encodeFunctionData(
+    functionFragment: "assetLicenses",
+    values: [BigNumberish]
+  ): string;
   encodeFunctionData(
     functionFragment: "getAsset",
     values: [BigNumberish]
@@ -76,6 +89,10 @@ export interface IPRegistryInterface extends Interface {
     functionFragment: "getCertificate",
     values: [BigNumberish]
   ): string;
+  encodeFunctionData(
+    functionFragment: "getLicense",
+    values: [BigNumberish]
+  ): string;
   encodeFunctionData(functionFragment: "owner", values?: undefined): string;
   encodeFunctionData(
     functionFragment: "registerAsset",
@@ -86,14 +103,27 @@ export interface IPRegistryInterface extends Interface {
     values?: undefined
   ): string;
   encodeFunctionData(
+    functionFragment: "setLicense",
+    values: [BigNumberish, BigNumberish, boolean, BigNumberish]
+  ): string;
+  encodeFunctionData(
     functionFragment: "totalAssets",
     values?: undefined
+  ): string;
+  encodeFunctionData(
+    functionFragment: "transferAsset",
+    values: [BigNumberish, AddressLike]
   ): string;
   encodeFunctionData(
     functionFragment: "transferOwnership",
     values: [AddressLike]
   ): string;
+  encodeFunctionData(functionFragment: "verifyAsset", values: [string]): string;
 
+  decodeFunctionResult(
+    functionFragment: "assetLicenses",
+    data: BytesLike
+  ): Result;
   decodeFunctionResult(functionFragment: "getAsset", data: BytesLike): Result;
   decodeFunctionResult(
     functionFragment: "getAssetsByOwner",
@@ -103,6 +133,7 @@ export interface IPRegistryInterface extends Interface {
     functionFragment: "getCertificate",
     data: BytesLike
   ): Result;
+  decodeFunctionResult(functionFragment: "getLicense", data: BytesLike): Result;
   decodeFunctionResult(functionFragment: "owner", data: BytesLike): Result;
   decodeFunctionResult(
     functionFragment: "registerAsset",
@@ -112,12 +143,21 @@ export interface IPRegistryInterface extends Interface {
     functionFragment: "renounceOwnership",
     data: BytesLike
   ): Result;
+  decodeFunctionResult(functionFragment: "setLicense", data: BytesLike): Result;
   decodeFunctionResult(
     functionFragment: "totalAssets",
     data: BytesLike
   ): Result;
   decodeFunctionResult(
+    functionFragment: "transferAsset",
+    data: BytesLike
+  ): Result;
+  decodeFunctionResult(
     functionFragment: "transferOwnership",
+    data: BytesLike
+  ): Result;
+  decodeFunctionResult(
+    functionFragment: "verifyAsset",
     data: BytesLike
   ): Result;
 }
@@ -143,6 +183,56 @@ export namespace AssetRegisteredEvent {
     ipfsHash: string;
     assetType: string;
     timestamp: bigint;
+  }
+  export type Event = TypedContractEvent<InputTuple, OutputTuple, OutputObject>;
+  export type Filter = TypedDeferredTopicFilter<Event>;
+  export type Log = TypedEventLog<Event>;
+  export type LogDescription = TypedLogDescription<Event>;
+}
+
+export namespace AssetTransferredEvent {
+  export type InputTuple = [
+    assetId: BigNumberish,
+    from: AddressLike,
+    to: AddressLike,
+    timestamp: BigNumberish
+  ];
+  export type OutputTuple = [
+    assetId: bigint,
+    from: string,
+    to: string,
+    timestamp: bigint
+  ];
+  export interface OutputObject {
+    assetId: bigint;
+    from: string;
+    to: string;
+    timestamp: bigint;
+  }
+  export type Event = TypedContractEvent<InputTuple, OutputTuple, OutputObject>;
+  export type Filter = TypedDeferredTopicFilter<Event>;
+  export type Log = TypedEventLog<Event>;
+  export type LogDescription = TypedLogDescription<Event>;
+}
+
+export namespace LicenseSetEvent {
+  export type InputTuple = [
+    assetId: BigNumberish,
+    price: BigNumberish,
+    isCommercial: boolean,
+    royaltyPercent: BigNumberish
+  ];
+  export type OutputTuple = [
+    assetId: bigint,
+    price: bigint,
+    isCommercial: boolean,
+    royaltyPercent: bigint
+  ];
+  export interface OutputObject {
+    assetId: bigint;
+    price: bigint;
+    isCommercial: boolean;
+    royaltyPercent: bigint;
   }
   export type Event = TypedContractEvent<InputTuple, OutputTuple, OutputObject>;
   export type Filter = TypedDeferredTopicFilter<Event>;
@@ -206,6 +296,18 @@ export interface IPRegistry extends BaseContract {
     event?: TCEvent
   ): Promise<this>;
 
+  assetLicenses: TypedContractMethod<
+    [arg0: BigNumberish],
+    [
+      [bigint, boolean, bigint] & {
+        price: bigint;
+        isCommercial: boolean;
+        royaltyPercent: bigint;
+      }
+    ],
+    "view"
+  >;
+
   getAsset: TypedContractMethod<
     [_id: BigNumberish],
     [IPRegistry.IPAssetStructOutput],
@@ -233,6 +335,18 @@ export interface IPRegistry extends BaseContract {
     "view"
   >;
 
+  getLicense: TypedContractMethod<
+    [_assetId: BigNumberish],
+    [
+      [bigint, boolean, bigint] & {
+        price: bigint;
+        isCommercial: boolean;
+        royaltyPercent: bigint;
+      }
+    ],
+    "view"
+  >;
+
   owner: TypedContractMethod<[], [string], "view">;
 
   registerAsset: TypedContractMethod<
@@ -243,7 +357,24 @@ export interface IPRegistry extends BaseContract {
 
   renounceOwnership: TypedContractMethod<[], [void], "nonpayable">;
 
+  setLicense: TypedContractMethod<
+    [
+      _assetId: BigNumberish,
+      _price: BigNumberish,
+      _isCommercial: boolean,
+      _royaltyPercent: BigNumberish
+    ],
+    [void],
+    "nonpayable"
+  >;
+
   totalAssets: TypedContractMethod<[], [bigint], "view">;
+
+  transferAsset: TypedContractMethod<
+    [_assetId: BigNumberish, _newOwner: AddressLike],
+    [void],
+    "nonpayable"
+  >;
 
   transferOwnership: TypedContractMethod<
     [newOwner: AddressLike],
@@ -251,10 +382,37 @@ export interface IPRegistry extends BaseContract {
     "nonpayable"
   >;
 
+  verifyAsset: TypedContractMethod<
+    [_ipfsHash: string],
+    [
+      [boolean, bigint, string, bigint, string] & {
+        exists: boolean;
+        assetId: bigint;
+        owner: string;
+        timestamp: bigint;
+        assetType: string;
+      }
+    ],
+    "view"
+  >;
+
   getFunction<T extends ContractMethod = ContractMethod>(
     key: string | FunctionFragment
   ): T;
 
+  getFunction(
+    nameOrSignature: "assetLicenses"
+  ): TypedContractMethod<
+    [arg0: BigNumberish],
+    [
+      [bigint, boolean, bigint] & {
+        price: bigint;
+        isCommercial: boolean;
+        royaltyPercent: bigint;
+      }
+    ],
+    "view"
+  >;
   getFunction(
     nameOrSignature: "getAsset"
   ): TypedContractMethod<
@@ -282,6 +440,19 @@ export interface IPRegistry extends BaseContract {
     "view"
   >;
   getFunction(
+    nameOrSignature: "getLicense"
+  ): TypedContractMethod<
+    [_assetId: BigNumberish],
+    [
+      [bigint, boolean, bigint] & {
+        price: bigint;
+        isCommercial: boolean;
+        royaltyPercent: bigint;
+      }
+    ],
+    "view"
+  >;
+  getFunction(
     nameOrSignature: "owner"
   ): TypedContractMethod<[], [string], "view">;
   getFunction(
@@ -295,11 +466,45 @@ export interface IPRegistry extends BaseContract {
     nameOrSignature: "renounceOwnership"
   ): TypedContractMethod<[], [void], "nonpayable">;
   getFunction(
+    nameOrSignature: "setLicense"
+  ): TypedContractMethod<
+    [
+      _assetId: BigNumberish,
+      _price: BigNumberish,
+      _isCommercial: boolean,
+      _royaltyPercent: BigNumberish
+    ],
+    [void],
+    "nonpayable"
+  >;
+  getFunction(
     nameOrSignature: "totalAssets"
   ): TypedContractMethod<[], [bigint], "view">;
   getFunction(
+    nameOrSignature: "transferAsset"
+  ): TypedContractMethod<
+    [_assetId: BigNumberish, _newOwner: AddressLike],
+    [void],
+    "nonpayable"
+  >;
+  getFunction(
     nameOrSignature: "transferOwnership"
   ): TypedContractMethod<[newOwner: AddressLike], [void], "nonpayable">;
+  getFunction(
+    nameOrSignature: "verifyAsset"
+  ): TypedContractMethod<
+    [_ipfsHash: string],
+    [
+      [boolean, bigint, string, bigint, string] & {
+        exists: boolean;
+        assetId: bigint;
+        owner: string;
+        timestamp: bigint;
+        assetType: string;
+      }
+    ],
+    "view"
+  >;
 
   getEvent(
     key: "AssetRegistered"
@@ -307,6 +512,20 @@ export interface IPRegistry extends BaseContract {
     AssetRegisteredEvent.InputTuple,
     AssetRegisteredEvent.OutputTuple,
     AssetRegisteredEvent.OutputObject
+  >;
+  getEvent(
+    key: "AssetTransferred"
+  ): TypedContractEvent<
+    AssetTransferredEvent.InputTuple,
+    AssetTransferredEvent.OutputTuple,
+    AssetTransferredEvent.OutputObject
+  >;
+  getEvent(
+    key: "LicenseSet"
+  ): TypedContractEvent<
+    LicenseSetEvent.InputTuple,
+    LicenseSetEvent.OutputTuple,
+    LicenseSetEvent.OutputObject
   >;
   getEvent(
     key: "OwnershipTransferred"
@@ -326,6 +545,28 @@ export interface IPRegistry extends BaseContract {
       AssetRegisteredEvent.InputTuple,
       AssetRegisteredEvent.OutputTuple,
       AssetRegisteredEvent.OutputObject
+    >;
+
+    "AssetTransferred(uint256,address,address,uint256)": TypedContractEvent<
+      AssetTransferredEvent.InputTuple,
+      AssetTransferredEvent.OutputTuple,
+      AssetTransferredEvent.OutputObject
+    >;
+    AssetTransferred: TypedContractEvent<
+      AssetTransferredEvent.InputTuple,
+      AssetTransferredEvent.OutputTuple,
+      AssetTransferredEvent.OutputObject
+    >;
+
+    "LicenseSet(uint256,uint256,bool,uint256)": TypedContractEvent<
+      LicenseSetEvent.InputTuple,
+      LicenseSetEvent.OutputTuple,
+      LicenseSetEvent.OutputObject
+    >;
+    LicenseSet: TypedContractEvent<
+      LicenseSetEvent.InputTuple,
+      LicenseSetEvent.OutputTuple,
+      LicenseSetEvent.OutputObject
     >;
 
     "OwnershipTransferred(address,address)": TypedContractEvent<
