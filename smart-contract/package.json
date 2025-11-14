@@ -33,5 +33,5 @@
     "typechain": "^8.3.2",
     "typescript": "~5.8.0"
   },
-  "type": "module"
+  "type": "commonjs"
 }

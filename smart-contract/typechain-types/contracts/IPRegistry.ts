@@ -51,7 +51,9 @@ export interface IPRegistryInterface extends Interface {
   getFunction(
     nameOrSignature:
       | "assetLicenses"
+      | "assets"
       | "getAsset"
+      | "getAssetIdByHash"
       | "getAssetsByOwner"
       | "getCertificate"
       | "getLicense"
@@ -78,8 +80,16 @@ export interface IPRegistryInterface extends Interface {
     values: [BigNumberish]
   ): string;
   encodeFunctionData(
+    functionFragment: "assets",
+    values: [BigNumberish]
+  ): string;
+  encodeFunctionData(
     functionFragment: "getAsset",
     values: [BigNumberish]
+  ): string;
+  encodeFunctionData(
+    functionFragment: "getAssetIdByHash",
+    values: [BytesLike]
   ): string;
   encodeFunctionData(
     functionFragment: "getAssetsByOwner",
@@ -124,7 +134,12 @@ export interface IPRegistryInterface extends Interface {
     functionFragment: "assetLicenses",
     data: BytesLike
   ): Result;
+  decodeFunctionResult(functionFragment: "assets", data: BytesLike): Result;
   decodeFunctionResult(functionFragment: "getAsset", data: BytesLike): Result;
+  decodeFunctionResult(
+    functionFragment: "getAssetIdByHash",
+    data: BytesLike
+  ): Result;
   decodeFunctionResult(
     functionFragment: "getAssetsByOwner",
     data: BytesLike
@@ -308,11 +323,27 @@ export interface IPRegistry extends BaseContract {
     "view"
   >;
 
+  assets: TypedContractMethod<
+    [arg0: BigNumberish],
+    [
+      [bigint, string, string, string, bigint] & {
+        id: bigint;
+        ipfsHash: string;
+        owner: string;
+        assetType: string;
+        timestamp: bigint;
+      }
+    ],
+    "view"
+  >;
+
   getAsset: TypedContractMethod<
     [_id: BigNumberish],
     [IPRegistry.IPAssetStructOutput],
     "view"
   >;
+
+  getAssetIdByHash: TypedContractMethod<[_hash: BytesLike], [bigint], "view">;
 
   getAssetsByOwner: TypedContractMethod<
     [_owner: AddressLike],
@@ -414,12 +445,30 @@ export interface IPRegistry extends BaseContract {
     "view"
   >;
   getFunction(
+    nameOrSignature: "assets"
+  ): TypedContractMethod<
+    [arg0: BigNumberish],
+    [
+      [bigint, string, string, string, bigint] & {
+        id: bigint;
+        ipfsHash: string;
+        owner: string;
+        assetType: string;
+        timestamp: bigint;
+      }
+    ],
+    "view"
+  >;
+  getFunction(
     nameOrSignature: "getAsset"
   ): TypedContractMethod<
     [_id: BigNumberish],
     [IPRegistry.IPAssetStructOutput],
     "view"
   >;
+  getFunction(
+    nameOrSignature: "getAssetIdByHash"
+  ): TypedContractMethod<[_hash: BytesLike], [bigint], "view">;
   getFunction(
     nameOrSignature: "getAssetsByOwner"
   ): TypedContractMethod<[_owner: AddressLike], [bigint[]], "view">;

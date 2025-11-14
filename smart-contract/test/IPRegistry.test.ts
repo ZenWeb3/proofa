@@ -52,7 +52,7 @@ describe("IPRegistry", function () {
       await tx.wait();
 
       const cert = await ipRegistry.getCertificate(1);
-      
+
       const [owner] = await hre.ethers.getSigners();
 
       expect(cert.id).to.equal(1n);
@@ -68,7 +68,7 @@ describe("IPRegistry", function () {
     it("should register an asset and return its ID", async function () {
       const tx = await ipRegistry.registerAsset("QmFakeHash", "image");
       const receipt = await tx.wait();
-      
+
       const event = receipt.logs.find((log: any) => {
         try {
           const parsed = ipRegistry.interface.parseLog(log);
@@ -77,7 +77,7 @@ describe("IPRegistry", function () {
           return false;
         }
       });
-      
+
       const parsedEvent = ipRegistry.interface.parseLog(event);
       expect(parsedEvent.args.id).to.equal(1n);
       expect(parsedEvent.args.owner).to.equal(owner.address);
@@ -96,22 +96,22 @@ describe("IPRegistry", function () {
       await ipRegistry.registerAsset("QmHash3", "video");
       await ipRegistry.registerAsset("QmHash4", "text");
       await ipRegistry.registerAsset("QmHash5", "document");
-      
+
       expect(await ipRegistry.totalAssets()).to.equal(5n);
     });
 
     it("should prevent duplicate IPFS hash registration", async function () {
       await ipRegistry.registerAsset("QmDuplicate", "image");
-      
+
       await expect(
         ipRegistry.registerAsset("QmDuplicate", "audio")
       ).to.be.revertedWith("Asset already registered");
     });
 
     it("should reject empty IPFS hash", async function () {
-      await expect(
-        ipRegistry.registerAsset("", "image")
-      ).to.be.revertedWith("Invalid IPFS hash");
+      await expect(ipRegistry.registerAsset("", "image")).to.be.revertedWith(
+        "Invalid IPFS hash"
+      );
     });
   });
 
@@ -139,9 +139,9 @@ describe("IPRegistry", function () {
     });
 
     it("should get full certificate for an asset", async function () {
-      const [id, ownerAddr, ipfsHash, assetType, timestamp, onChainLink] = 
+      const [id, ownerAddr, ipfsHash, assetType, timestamp, onChainLink] =
         await ipRegistry.getCertificate(1);
-      
+
       expect(id).to.equal(1n);
       expect(ownerAddr).to.equal(user1.address);
       expect(ipfsHash).to.equal("QmHash1");
@@ -151,7 +151,9 @@ describe("IPRegistry", function () {
     });
 
     it("should revert when getting non-existent asset", async function () {
-      await expect(ipRegistry.getAsset(999)).to.be.revertedWith("Asset not found");
+      await expect(ipRegistry.getAsset(999)).to.be.revertedWith(
+        "Asset not found"
+      );
     });
   });
 
@@ -185,7 +187,9 @@ describe("IPRegistry", function () {
       const price = hre.ethers.parseEther("0.5");
       await ipRegistry.connect(user1).setLicense(1, price, false, 15);
 
-      const [licensePrice, isCommercial, royalty] = await ipRegistry.getLicense(1);
+      const [licensePrice, isCommercial, royalty] = await ipRegistry.getLicense(
+        1
+      );
       expect(licensePrice).to.equal(price);
       expect(isCommercial).to.equal(false);
       expect(royalty).to.equal(15n);
@@ -222,7 +226,9 @@ describe("IPRegistry", function () {
     });
 
     it("should transfer asset to new owner", async function () {
-      const tx = await ipRegistry.connect(user1).transferAsset(1, user2.address);
+      const tx = await ipRegistry
+        .connect(user1)
+        .transferAsset(1, user2.address);
       const receipt = await tx.wait();
 
       const event = receipt.logs.find((log: any) => {
@@ -287,7 +293,7 @@ describe("IPRegistry", function () {
     });
 
     it("should verify existing asset", async function () {
-      const [exists, assetId, ownerAddr, timestamp, assetType] = 
+      const [exists, assetId, ownerAddr, timestamp, assetType] =
         await ipRegistry.verifyAsset("QmExisting");
 
       expect(exists).to.equal(true);
@@ -298,7 +304,7 @@ describe("IPRegistry", function () {
     });
 
     it("should return false for non-existent asset", async function () {
-      const [exists, assetId, ownerAddr, timestamp, assetType] = 
+      const [exists, assetId, ownerAddr, timestamp, assetType] =
         await ipRegistry.verifyAsset("QmNotRegistered");
 
       expect(exists).to.equal(false);
@@ -311,12 +317,46 @@ describe("IPRegistry", function () {
     it("should still verify after transfer", async function () {
       await ipRegistry.connect(user1).transferAsset(1, user2.address);
 
-      const [exists, assetId, ownerAddr, , ] = 
-        await ipRegistry.verifyAsset("QmExisting");
+      const [exists, assetId, ownerAddr, ,] = await ipRegistry.verifyAsset(
+        "QmExisting"
+      );
 
       expect(exists).to.equal(true);
       expect(assetId).to.equal(1n);
       expect(ownerAddr).to.equal(user2.address); // New owner
+    });
+    it("should return the correct asset ID by IPFS hash", async () => {
+      const tx = await ipRegistry.registerAsset("QmHashLookup", "image");
+      const receipt = await tx.wait();
+
+      // Grab the asset ID from the emitted event
+      const event = receipt.logs.find((log: any) => {
+        try {
+          const parsed = ipRegistry.interface.parseLog(log);
+          return parsed?.name === "AssetRegistered";
+        } catch {
+          return false;
+        }
+      });
+
+      const parsedEvent = ipRegistry.interface.parseLog(event);
+      const newAssetId = parsedEvent.args.id;
+
+      const hashKey = hre.ethers.keccak256(
+        hre.ethers.toUtf8Bytes("QmHashLookup")
+      );
+      const assetId = await ipRegistry.getAssetIdByHash(hashKey);
+
+      expect(assetId).to.equal(newAssetId);
+    });
+
+    it("should return 0 for a non-existent hash", async () => {
+      const hashKey = hre.ethers.keccak256(
+        hre.ethers.toUtf8Bytes("QmNonExistent")
+      );
+      const assetId = await ipRegistry.getAssetIdByHash(hashKey);
+
+      expect(assetId).to.equal(0n);
     });
   });
 
@@ -324,23 +364,23 @@ describe("IPRegistry", function () {
     it("should handle complete workflow: register → license → transfer", async function () {
       // Register
       await ipRegistry.connect(user1).registerAsset("QmWorkflow", "image");
-      
+
       // Set license
       const price = hre.ethers.parseEther("1.0");
       await ipRegistry.connect(user1).setLicense(1, price, true, 20);
-      
+
       // Verify license
       const [licensePrice, , royalty] = await ipRegistry.getLicense(1);
       expect(licensePrice).to.equal(price);
       expect(royalty).to.equal(20n);
-      
+
       // Transfer
       await ipRegistry.connect(user1).transferAsset(1, user2.address);
-      
+
       // Verify new owner
       const asset = await ipRegistry.getAsset(1);
       expect(asset.owner).to.equal(user2.address);
-      
+
       // Verify asset still exists
       const [exists, , ownerAddr] = await ipRegistry.verifyAsset("QmWorkflow");
       expect(exists).to.equal(true);
@@ -353,10 +393,10 @@ describe("IPRegistry", function () {
       await ipRegistry.connect(user2).registerAsset("QmUser2Asset1", "video");
 
       expect(await ipRegistry.totalAssets()).to.equal(3n);
-      
+
       const user1Assets = await ipRegistry.getAssetsByOwner(user1.address);
       const user2Assets = await ipRegistry.getAssetsByOwner(user2.address);
-      
+
       expect(user1Assets.length).to.equal(2);
       expect(user2Assets.length).to.equal(1);
     });

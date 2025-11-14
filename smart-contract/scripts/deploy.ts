@@ -41,7 +41,7 @@ async function main() {
   console.log("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
   console.log("Contract Address:", contractAddress);
   console.log("Network: Story Protocol Iliad Testnet");
-  console.log("Chain ID: 1513");
+  console.log("Chain ID: 1315");
   console.log("Deployer:", deployer.address);
   console.log("Block:", await hre.ethers.provider.getBlockNumber());
   console.log("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");

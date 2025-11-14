@@ -14,18 +14,15 @@ contract IPRegistry is Ownable {
         uint256 timestamp;
     }
 
-    // ✅ Feature 1: Licensing & Monetization
     struct License {
-        uint256 price;           // Price to license the IP (in wei)
-        bool isCommercial;       // Can be used commercially?
-        uint256 royaltyPercent;  // Royalty percentage (0-100)
+        uint256 price;
+        bool isCommercial;
+        uint256 royaltyPercent;
     }
 
-    mapping(uint256 => IPAsset) private assets;
+    mapping(uint256 => IPAsset) public assets;
     mapping(address => uint256[]) private ownerToAssets;
     mapping(uint256 => License) public assetLicenses;
-    
-    // ✅ Feature 3: Verification - map IPFS hash to asset ID for quick lookup
     mapping(bytes32 => uint256) private hashToAssetId;
 
     event AssetRegistered(
@@ -67,7 +64,6 @@ contract IPRegistry is Ownable {
             "Invalid asset type"
         );
 
-        // ✅ Check if hash already exists
         bytes32 hashKey = keccak256(bytes(_ipfsHash));
         require(hashToAssetId[hashKey] == 0, "Asset already registered");
 
@@ -83,8 +79,6 @@ contract IPRegistry is Ownable {
         });
 
         ownerToAssets[msg.sender].push(newId);
-        
-        // ✅ Map hash to asset ID for verification
         hashToAssetId[hashKey] = newId;
 
         emit AssetRegistered(
@@ -98,7 +92,6 @@ contract IPRegistry is Ownable {
         return newId;
     }
 
-    // ✅ Feature 1: Set license terms for an asset
     function setLicense(
         uint256 _assetId,
         uint256 _price,
@@ -118,17 +111,17 @@ contract IPRegistry is Ownable {
         emit LicenseSet(_assetId, _price, _isCommercial, _royaltyPercent);
     }
 
-    // ✅ Feature 1: Get license info
-    function getLicense(uint256 _assetId) public view returns (
-        uint256 price,
-        bool isCommercial,
-        uint256 royaltyPercent
-    ) {
+    function getLicense(
+        uint256 _assetId
+    )
+        public
+        view
+        returns (uint256 price, bool isCommercial, uint256 royaltyPercent)
+    {
         License memory license = assetLicenses[_assetId];
         return (license.price, license.isCommercial, license.royaltyPercent);
     }
 
-    // ✅ Feature 2: Transfer asset ownership
     function transferAsset(uint256 _assetId, address _newOwner) public {
         require(_assetId > 0 && _assetId <= _assetIdCounter, "Asset not found");
         require(assets[_assetId].owner == msg.sender, "Not the owner");
@@ -137,26 +130,26 @@ contract IPRegistry is Ownable {
 
         address oldOwner = msg.sender;
 
-        // Remove from old owner's list
         _removeAssetFromOwner(oldOwner, _assetId);
-
-        // Add to new owner's list
         ownerToAssets[_newOwner].push(_assetId);
-
-        // Update asset owner
         assets[_assetId].owner = _newOwner;
 
         emit AssetTransferred(_assetId, oldOwner, _newOwner, block.timestamp);
     }
 
-    // ✅ Feature 3: Verify if an asset exists by IPFS hash
-    function verifyAsset(string memory _ipfsHash) public view returns (
-        bool exists,
-        uint256 assetId,
-        address owner,
-        uint256 timestamp,
-        string memory assetType
-    ) {
+    function verifyAsset(
+        string memory _ipfsHash
+    )
+        public
+        view
+        returns (
+            bool exists,
+            uint256 assetId,
+            address owner,
+            uint256 timestamp,
+            string memory assetType
+        )
+    {
         bytes32 hashKey = keccak256(bytes(_ipfsHash));
         uint256 id = hashToAssetId[hashKey];
 
@@ -168,12 +161,15 @@ contract IPRegistry is Ownable {
         return (true, asset.id, asset.owner, asset.timestamp, asset.assetType);
     }
 
-    // Helper function to remove asset from owner's list
+    // ✅ New getter for hashToAssetId (use this in tests)
+    function getAssetIdByHash(bytes32 _hash) public view returns (uint256) {
+        return hashToAssetId[_hash];
+    }
+
     function _removeAssetFromOwner(address _owner, uint256 _assetId) private {
         uint256[] storage assetIds = ownerToAssets[_owner];
         for (uint256 i = 0; i < assetIds.length; i++) {
             if (assetIds[i] == _assetId) {
-                // Move last element to this position and pop
                 assetIds[i] = assetIds[assetIds.length - 1];
                 assetIds.pop();
                 break;
@@ -196,7 +192,6 @@ contract IPRegistry is Ownable {
         return _assetIdCounter;
     }
 
-    // Get full certificate for an asset
     function getCertificate(
         uint256 _id
     )
@@ -227,7 +222,6 @@ contract IPRegistry is Ownable {
         );
     }
 
-    // Helper function to convert address to string
     function _addressToString(
         address _addr
     ) internal pure returns (string memory) {
