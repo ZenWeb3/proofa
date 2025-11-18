@@ -29,15 +29,21 @@ async function rpcCall(method: string, params: any[] = []): Promise<any> {
 }
 
 // Send transaction
-async function sendTransaction(userPrivateKey: string, data: string): Promise<string> {
+async function sendTransaction(
+  userPrivateKey: string,
+  data: string
+): Promise<string> {
   const wallet = new Wallet(userPrivateKey);
-  
+
   // Get nonce
-  const nonce = await rpcCall("eth_getTransactionCount", [wallet.address, "latest"]);
-  
+  const nonce = await rpcCall("eth_getTransactionCount", [
+    wallet.address,
+    "latest",
+  ]);
+
   // Get gas price
   const gasPrice = await rpcCall("eth_gasPrice", []);
-  
+
   // Estimate gas
   const gasEstimate = await rpcCall("eth_estimateGas", [
     {
@@ -62,30 +68,35 @@ async function sendTransaction(userPrivateKey: string, data: string): Promise<st
 
   // Send raw transaction
   const txHash = await rpcCall("eth_sendRawTransaction", [signedTx]);
-  
+
   return txHash;
 }
 
 // Wait for transaction
-async function waitForTransaction(txHash: string, maxAttempts = 60): Promise<any> {
+async function waitForTransaction(
+  txHash: string,
+  maxAttempts = 60
+): Promise<any> {
   for (let i = 0; i < maxAttempts; i++) {
     const receipt = await rpcCall("eth_getTransactionReceipt", [txHash]);
-    
+
     if (receipt) {
-      console.log(`Transaction mined in block: ${parseInt(receipt.blockNumber, 16)}`);
+      console.log(
+        `Transaction mined in block: ${parseInt(receipt.blockNumber, 16)}`
+      );
       return receipt;
     }
-    
+
     await new Promise((resolve) => setTimeout(resolve, 2000)); // Wait 2s
   }
-  
+
   throw new Error("Transaction timeout");
 }
 
 // Call contract (read-only)
 async function callContract(method: string, params: any[] = []): Promise<any> {
   const data = iface.encodeFunctionData(method, params);
-  
+
   const result = await rpcCall("eth_call", [
     {
       to: CONTRACT_ADDRESS,
@@ -108,7 +119,10 @@ export async function registerAssetOnChain(
     console.log(`Registering asset for: ${wallet.address}`);
 
     // Encode function call
-    const data = iface.encodeFunctionData("registerAsset", [ipfsHash, assetType]);
+    const data = iface.encodeFunctionData("registerAsset", [
+      ipfsHash,
+      assetType,
+    ]);
 
     // Send transaction
     const txHash = await sendTransaction(userPrivateKey, data);
@@ -122,11 +136,11 @@ export async function registerAssetOnChain(
     return Number(totalAssets);
   } catch (err: any) {
     console.error("Registration failed:", err.message);
-    
+
     if (err.message?.includes("insufficient funds")) {
       throw new Error("INSUFFICIENT_FUNDS");
     }
-    
+
     throw err;
   }
 }
@@ -155,7 +169,7 @@ export async function getCertificateOnChain(assetId: number) {
 export async function verifyAssetByHash(ipfsHash: string) {
   try {
     const result = await callContract("verifyAsset", [ipfsHash]);
-    
+
     return {
       exists: result[0],
       assetId: Number(result[1]),
@@ -165,7 +179,13 @@ export async function verifyAssetByHash(ipfsHash: string) {
     };
   } catch (err) {
     console.error("Verify failed:", err);
-    return { exists: false, assetId: 0, owner: "", timestamp: 0, assetType: "" };
+    return {
+      exists: false,
+      assetId: 0,
+      owner: "",
+      timestamp: 0,
+      assetType: "",
+    };
   }
 }
 
@@ -180,8 +200,40 @@ export async function checkWalletBalance(address: string): Promise<string> {
   }
 }
 
+// Transfer IP Asset (NFT-style transfer)
+export async function transferAssetOnChain(
+  userPrivateKey: string,
+  assetId: number,
+  newOwner: string
+): Promise<string> {
+  try {
+    const wallet = new Wallet(userPrivateKey);
+    console.log(
+      `Transferring asset ${assetId} from ${wallet.address} → ${newOwner}`
+    );
+
+    // Encode transfer function call
+    const data = iface.encodeFunctionData("transferAsset", [assetId, newOwner]);
+
+    // Sign + send TX
+    const txHash = await sendTransaction(userPrivateKey, data);
+    console.log("Transfer TX:", txHash);
+
+    // Wait for confirmation
+    await waitForTransaction(txHash);
+
+    return txHash;
+  } catch (err: any) {
+    console.error("Transfer failed:", err.message);
+    throw new Error("TRANSFER_FAILED");
+  }
+}
+
 // Fund user wallet
-export async function fundUserWallet(userAddress: string, amount: string): Promise<boolean> {
+export async function fundUserWallet(
+  userAddress: string,
+  amount: string
+): Promise<boolean> {
   try {
     const data = "0x"; // Empty data for simple transfer
     const txHash = await sendTransaction(PRIVATE_KEY, data);
@@ -190,5 +242,60 @@ export async function fundUserWallet(userAddress: string, amount: string): Promi
   } catch (err) {
     console.error("Funding failed:", err);
     return false;
+  }
+}
+
+// Set license terms for an asset
+export async function setLicenseOnChain(
+  userPrivateKey: string,
+  assetId: number,
+  price: string, // in wei
+  isCommercial: boolean,
+  royaltyPercent: number
+): Promise<string> {
+  try {
+    const wallet = new Wallet(userPrivateKey);
+    console.log(`Setting license for asset ${assetId} by ${wallet.address}`);
+
+    // Encode function call
+    const data = iface.encodeFunctionData("setLicense", [
+      assetId,
+      price,
+      isCommercial,
+      royaltyPercent,
+    ]);
+
+    // Send transaction
+    const txHash = await sendTransaction(userPrivateKey, data);
+    console.log("License set, TX:", txHash);
+
+    // Wait for confirmation
+    await waitForTransaction(txHash);
+
+    return txHash;
+  } catch (err: any) {
+    console.error("Set license failed:", err.message);
+
+    if (err.message?.includes("insufficient funds")) {
+      throw new Error("INSUFFICIENT_FUNDS");
+    }
+
+    throw err;
+  }
+}
+
+// Get license details for an asset
+export async function getLicenseOnChain(assetId: number) {
+  try {
+    const result = await callContract("getLicense", [assetId]);
+
+    return {
+      price: result[0], // bigint in wei
+      isCommercial: result[1], // boolean
+      royaltyPercent: Number(result[2]), // uint256
+    };
+  } catch (err) {
+    console.error("Get license failed:", err);
+    throw new Error("Failed to get license");
   }
 }

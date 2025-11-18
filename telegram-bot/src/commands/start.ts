@@ -1,6 +1,7 @@
 import TelegramBot, { Message } from "node-telegram-bot-api";
 import { createWalletForUser } from "../services/wallet";
 import { getUser } from "../db/database";
+import { addUserToMonitor } from "../services/balanceMonitor";
 
 export default function startCommand(bot: TelegramBot) {
   bot.onText(/\/start/, (msg: Message) => {
@@ -9,6 +10,7 @@ export default function startCommand(bot: TelegramBot) {
 
     // Create a new wallet or fetch existing
     const user = getUser(chatId) || createWalletForUser(chatId);
+    addUserToMonitor(user.wallet_address, chatId)
 
     bot.sendMessage(
       chatId,

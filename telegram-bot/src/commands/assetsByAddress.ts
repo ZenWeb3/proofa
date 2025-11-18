@@ -1,35 +1,22 @@
-
+// src/commands/assetsByAddress.ts (replace entire file)
 import TelegramBot from "node-telegram-bot-api";
 import axios from "axios";
 import { STORY_RPC_URL, CONTRACT_ADDRESS } from "../config";
 import IPRegistryABI from "../../../smart-contract/artifacts/contracts/IPRegistry.sol/IPRegistry.json";
 import { Interface } from "ethers";
+import { getLicenseOnChain } from "../utils/blockchain-simple";
 
 const iface = new Interface(IPRegistryABI.abi);
-
-// Track users waiting to input address
 const pendingAddressUsers = new Set<string>();
 
 async function rpcCall(method: string, params: any[] = []): Promise<any> {
   try {
     const response = await axios.post(
       STORY_RPC_URL,
-      {
-        jsonrpc: "2.0",
-        id: Date.now(),
-        method,
-        params,
-      },
-      {
-        timeout: 30000,
-        headers: { "Content-Type": "application/json" },
-      }
+      { jsonrpc: "2.0", id: Date.now(), method, params },
+      { timeout: 30000, headers: { "Content-Type": "application/json" } }
     );
-
-    if (response.data.error) {
-      throw new Error(response.data.error.message);
-    }
-
+    if (response.data.error) throw new Error(response.data.error.message);
     return response.data.result;
   } catch (err: any) {
     console.error("RPC call failed:", err.message);
@@ -39,15 +26,10 @@ async function rpcCall(method: string, params: any[] = []): Promise<any> {
 
 async function callContract(method: string, params: any[] = []): Promise<any> {
   const data = iface.encodeFunctionData(method, params);
-  
   const result = await rpcCall("eth_call", [
-    {
-      to: CONTRACT_ADDRESS,
-      data,
-    },
+    { to: CONTRACT_ADDRESS, data },
     "latest",
   ]);
-
   return iface.decodeFunctionResult(method, result);
 }
 
@@ -65,7 +47,6 @@ async function getAssetDetails(assetId: number) {
   try {
     const result = await callContract("getAsset", [assetId]);
     const asset = result[0];
-    
     return {
       id: assetId,
       ipfsHash: asset.ipfsHash,
@@ -80,7 +61,6 @@ async function getAssetDetails(assetId: number) {
 }
 
 export default function assetsByAddressCommand(bot: TelegramBot) {
-  // Step 1: Command handler
   bot.onText(/\/assetsbyaddress/, async (msg) => {
     if (!msg?.chat) return;
     const chatId = String(msg.chat.id);
@@ -90,21 +70,18 @@ export default function assetsByAddressCommand(bot: TelegramBot) {
       "🔍 *Query Assets by Address*\n\nPlease send the wallet address you want to check:",
       { parse_mode: "Markdown" }
     );
-    
+
     pendingAddressUsers.add(chatId);
   });
 
-  // Step 2: Listen for address input
   bot.on("message", async (msg) => {
     if (!msg?.chat || !msg.text) return;
     const chatId = String(msg.chat.id);
 
-    // Only process if user is in "waiting for address" mode
     if (!pendingAddressUsers.has(chatId)) return;
 
     const userAddress = msg.text.trim();
 
-    // Validate Ethereum address format
     if (!/^0x[a-fA-F0-9]{40}$/.test(userAddress)) {
       await bot.sendMessage(
         chatId,
@@ -116,7 +93,6 @@ export default function assetsByAddressCommand(bot: TelegramBot) {
     try {
       await bot.sendMessage(chatId, "🔍 Fetching assets...");
 
-      // Get asset IDs
       const assetIds = await getAssetsByOwner(userAddress);
 
       if (assetIds.length === 0) {
@@ -129,12 +105,10 @@ export default function assetsByAddressCommand(bot: TelegramBot) {
         return;
       }
 
-      // Fetch details for each asset
       const assets = await Promise.all(
         assetIds.map((id) => getAssetDetails(id))
       );
 
-      // Build response message
       let response = `🖼 *Assets for Address*\n\`${userAddress}\`\n\n`;
       response += `Found ${assetIds.length} asset(s):\n\n`;
 
@@ -142,10 +116,25 @@ export default function assetsByAddressCommand(bot: TelegramBot) {
         if (!asset) continue;
 
         const date = new Date(asset.timestamp * 1000).toLocaleString();
+
+        // Fetch license
+        let licenseInfo = "";
+        try {
+          const license = await getLicenseOnChain(asset.id);
+          if (license.price > 0n) {
+            const priceIP = (Number(license.price) / 1e18).toFixed(4);
+            licenseInfo = `\n💰 License: ${priceIP} IP ${
+              license.isCommercial ? "💼" : "👤"
+            } | ${license.royaltyPercent}% royalty`;
+          }
+        } catch (err) {
+          // No license
+        }
+
         response += `━━━━━━━━━━━━━━━━━━\n`;
         response += `🆔 *Asset ID:* ${asset.id}\n`;
         response += `📦 *Type:* ${asset.assetType}\n`;
-        response += `🕐 *Registered:* ${date}\n`;
+        response += `🕐 *Registered:* ${date}${licenseInfo}\n`;
         response += `🔗 [View on IPFS](https://gateway.pinata.cloud/ipfs/${asset.ipfsHash})\n\n`;
       }
 
@@ -162,16 +151,14 @@ export default function assetsByAddressCommand(bot: TelegramBot) {
         "❌ Failed to fetch assets. Network issue - please try again."
       );
     } finally {
-      // Clean up
       pendingAddressUsers.delete(chatId);
     }
   });
 
-  // Cancel handler
   bot.onText(/\/cancel/, (msg) => {
     if (!msg?.chat) return;
     const chatId = String(msg.chat.id);
-    
+
     if (pendingAddressUsers.has(chatId)) {
       pendingAddressUsers.delete(chatId);
       bot.sendMessage(chatId, "✅ Cancelled.");

@@ -3,6 +3,7 @@ import axios from "axios";
 import { STORY_RPC_URL, CONTRACT_ADDRESS } from "../config";
 import IPRegistryABI from "../../../smart-contract/artifacts/contracts/IPRegistry.sol/IPRegistry.json";
 import { Interface } from "ethers";
+import { getLicenseOnChain } from "../utils/blockchain-simple";
 
 const iface = new Interface(IPRegistryABI.abi);
 

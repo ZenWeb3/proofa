@@ -1,4 +1,3 @@
-
 import TelegramBot from "node-telegram-bot-api";
 import dotenv from "dotenv";
 import fs from "fs";
@@ -7,9 +6,13 @@ dotenv.config();
 
 import startCommand from "./commands/start";
 import registerCommand from "./commands/register";
-import myAssetsCommand from "./commands/myassets"; 
+import myAssetsCommand from "./commands/myassets";
 import verifyCommand from "./commands/verify";
 import assetsByAddressCommand from "./commands/assetsByAddress";
+import { startBalanceMonitor } from "./services/balanceMonitor";
+import balanceCommand from "./commands/balance";
+import transferCommand from "./commands/transfer";
+import licenseCommand from "./commands/license";
 import { TEMP_DIR } from "./config";
 
 if (!fs.existsSync(TEMP_DIR)) {
@@ -54,9 +57,13 @@ function startBot() {
   // Register all commands
   startCommand(bot);
   registerCommand(bot);
-  myAssetsCommand(bot); 
+  myAssetsCommand(bot);
   assetsByAddressCommand(bot);
   verifyCommand(bot);
+  startBalanceMonitor(bot);
+  balanceCommand(bot);
+  transferCommand(bot);
+  licenseCommand(bot)
 
   console.log("✅ Bot is running (connection issues will auto-recover)");
 }
